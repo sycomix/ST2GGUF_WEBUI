@@ -1,0 +1,4 @@
+safetensors
+numpy
+fastapi
+uvicorn
