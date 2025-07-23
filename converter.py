@@ -91,6 +91,33 @@ def load_safetensors(input_path: str):
 
     return tensors
 
+def weighted_average_tensors(tensors1: dict, tensors2: dict, weight1: float, weight2: float) -> dict:
+    """Performs a weighted average of corresponding tensors from two models."""
+    merged_tensors = {}
+    common_keys = set(tensors1.keys()) & set(tensors2.keys())
+
+    if not common_keys:
+        raise ValueError("No common tensors found between the two models for merging.")
+
+    for key in common_keys:
+        tensor1 = tensors1[key]
+        tensor2 = tensors2[key]
+
+        if tensor1.shape != tensor2.shape:
+            raise ValueError(f"Shape mismatch for tensor {key}: {tensor1.shape} vs {tensor2.shape}")
+        if tensor1.dtype != tensor2.dtype:
+            # For simplicity, we'll convert to float32 if dtypes differ for merging
+            # A more robust solution might involve more complex type promotion
+            print(f"Warning: Dtype mismatch for tensor {key}. Converting to float32 for merging.")
+            tensor1 = tensor1.astype(np.float32)
+            tensor2 = tensor2.astype(np.float32)
+
+        merged_tensor = (tensor1 * weight1) + (tensor2 * weight2)
+        merged_tensors[key] = merged_tensor
+    
+    print(f"Successfully merged {len(merged_tensors)} common tensors.")
+    return merged_tensors
+
 def quantize_q4_0(tensor: np.ndarray):
     """Quantizes a float32 numpy array to Q4_0 format.
     This is a simplified implementation for demonstration.
@@ -164,10 +191,22 @@ def convert_to_gguf(tensors: dict, output_path: str, quantization_type: str = "n
         for name, tensor in tensors.items():
             dtype_np = tensor.dtype.type
             
+            # Max tensor name length in GGUF is 64 characters
+            max_name_len = 64
+
             if quantization_type == "Q4_0" and dtype_np == np.float32:
                 q_data, scales_data, _ = quantize_q4_0(tensor)
+                
+                q_name = name + ".qdata"
+                if len(q_name) > max_name_len:
+                    q_name = name[:max_name_len - len(".qdata")] + ".qdata"
+
+                scales_name = name + ".scales"
+                if len(scales_name) > max_name_len:
+                    scales_name = name[:max_name_len - len(".scales")] + ".scales"
+
                 temp_tensor_infos.append({
-                    "name": name + ".qdata",
+                    "name": q_name,
                     "n_dims": len(tensor.shape),
                     "shape": tensor.shape,
                     "dtype_id": GGUF_DTYPE_MAP["Q4_0"],
@@ -175,7 +214,7 @@ def convert_to_gguf(tensors: dict, output_path: str, quantization_type: str = "n
                     "tensor_data": q_data # Store data temporarily
                 })
                 temp_tensor_infos.append({
-                    "name": name + ".scales",
+                    "name": scales_name,
                     "n_dims": len(tensor.shape), 
                     "shape": tensor.shape, 
                     "dtype_id": GGUF_DTYPE_MAP[np.float32],
@@ -184,8 +223,17 @@ def convert_to_gguf(tensors: dict, output_path: str, quantization_type: str = "n
                 })
             elif quantization_type == "Q8_0" and dtype_np == np.float32:
                 q_data, scales_data, _ = quantize_q8_0(tensor)
+
+                q_name = name + ".qdata"
+                if len(q_name) > max_name_len:
+                    q_name = name[:max_name_len - len(".qdata")] + ".qdata"
+
+                scales_name = name + ".scales"
+                if len(scales_name) > max_name_len:
+                    scales_name = name[:max_name_len - len(".scales")] + ".scales"
+
                 temp_tensor_infos.append({
-                    "name": name + ".qdata",
+                    "name": q_name,
                     "n_dims": len(tensor.shape),
                     "shape": tensor.shape,
                     "dtype_id": GGUF_DTYPE_MAP[np.int8],
@@ -193,7 +241,7 @@ def convert_to_gguf(tensors: dict, output_path: str, quantization_type: str = "n
                     "tensor_data": q_data # Store data temporarily
                 })
                 temp_tensor_infos.append({
-                    "name": name + ".scales",
+                    "name": scales_name,
                     "n_dims": 1, 
                     "shape": (1,), 
                     "dtype_id": GGUF_DTYPE_MAP[np.float32],
@@ -201,11 +249,15 @@ def convert_to_gguf(tensors: dict, output_path: str, quantization_type: str = "n
                     "tensor_data": scales_data # Store data temporarily
                 })
             else:
+                tensor_name = name
+                if len(tensor_name) > max_name_len:
+                    tensor_name = name[:max_name_len] # Truncate if too long
+
                 if dtype_np not in GGUF_DTYPE_MAP:
                     raise ValueError(f"Unsupported dtype: {dtype_np} for tensor {name}")
                 dtype_id = GGUF_DTYPE_MAP[dtype_np]
                 temp_tensor_infos.append({
-                    "name": name,
+                    "name": tensor_name,
                     "n_dims": len(tensor.shape),
                     "shape": tensor.shape,
                     "dtype_id": dtype_id,

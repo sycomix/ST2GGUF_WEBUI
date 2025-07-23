@@ -6,50 +6,121 @@
     <title>Safetensor to GGUF Converter</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 class="text-2xl font-bold mb-6 text-center">Safetensor to GGUF Converter</h1>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold mb-8 text-center text-gray-800">Safetensor to GGUF Converter & Merger</h1>
 
-        <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="safetensorsFile">
-                Input Safetensors File:
-            </label>
-            <input type="file" id="safetensorsFile" accept=".safetensors" class="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100
-            "/>
-            <p id="fileName" class="mt-2 text-sm text-gray-600"></p>
-        </div>
-
-        <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2">
-                Quantization Type:
-            </label>
-            <div class="mt-2">
-                <label class="inline-flex items-center">
-                    <input type="radio" class="form-radio" name="quantization" value="none" checked>
-                    <span class="ml-2">No Quantization</span>
+        <!-- Single Model Conversion Section -->
+        <div class="mb-10 border-b pb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Convert Single Model</h2>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="safetensorsFile">
+                    Input Safetensors File (or .zip of sharded model):
                 </label>
-                <label class="inline-flex items-center ml-6">
-                    <input type="radio" class="form-radio" name="quantization" value="Q4_0">
-                    <span class="ml-2">Q4_0</span>
-                </label>
-                <label class="inline-flex items-center ml-6">
-                    <input type="radio" class="form-radio" name="quantization" value="Q8_0">
-                    <span class="ml-2">Q8_0</span>
-                </label>
-                <!-- Add more quantization options as needed -->
+                <input type="file" id="safetensorsFile" accept=".safetensors,.zip" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100
+                "/>
+                <p id="fileName" class="mt-2 text-sm text-gray-600"></p>
+                <p class="text-xs text-gray-500 mt-1">For sharded models, please zip the `model.safetensors.index.json` and all shard files into a single .zip archive.</p>
             </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">
+                    Quantization Type:
+                </label>
+                <div class="mt-2">
+                    <label class="inline-flex items-center">
+                        <input type="radio" class="form-radio" name="quantization" value="none" checked>
+                        <span class="ml-2">No Quantization</span>
+                    </label>
+                    <label class="inline-flex items-center ml-6">
+                        <input type="radio" class="form-radio" name="quantization" value="Q4_0">
+                        <span class="ml-2">Q4_0</span>
+                    </label>
+                    <label class="inline-flex items-center ml-6">
+                        <input type="radio" class="form-radio" name="quantization" value="Q8_0">
+                        <span class="ml-2">Q8_0</span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="convertButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full
+                focus:outline-none focus:shadow-outline" type="button">
+                Convert Model
+            </button>
         </div>
 
-        <button id="convertButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full
-            focus:outline-none focus:shadow-outline" type="button">
-            Convert Model
-        </button>
+        <!-- Merge Models Section -->
+        <div>
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Merge Two Models (Weighted Average)</h2>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="model1File">
+                        Model 1 File (or .zip of sharded model):
+                    </label>
+                    <input type="file" id="model1File" accept=".safetensors,.zip" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100
+                    "/>
+                    <p id="model1FileName" class="mt-2 text-sm text-gray-600"></p>
+                    <label class="block text-gray-700 text-sm font-bold mt-2 mb-2" for="weight1">
+                        Weight 1 (0.0 - 1.0):
+                    </label>
+                    <input type="number" id="weight1" value="0.5" min="0" max="1" step="0.1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="model2File">
+                        Model 2 File (or .zip of sharded model):
+                    </label>
+                    <input type="file" id="model2File" accept=".safetensors,.zip" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100
+                    "/>
+                    <p id="model2FileName" class="mt-2 text-sm text-gray-600"></p>
+                    <label class="block text-gray-700 text-sm font-bold mt-2 mb-2" for="weight2">
+                        Weight 2 (0.0 - 1.0):
+                    </label>
+                    <input type="number" id="weight2" value="0.5" min="0" max="1" step="0.1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+            </div>
 
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">
+                    Quantization Type for Merged Model:
+                </label>
+                <div class="mt-2">
+                    <label class="inline-flex items-center">
+                        <input type="radio" class="form-radio" name="mergeQuantization" value="none" checked>
+                        <span class="ml-2">No Quantization</span>
+                    </label>
+                    <label class="inline-flex items-center ml-6">
+                        <input type="radio" class="form-radio" name="mergeQuantization" value="Q4_0">
+                        <span class="ml-2">Q4_0</span>
+                    </label>
+                    <label class="inline-flex items-center ml-6">
+                        <input type="radio" class="form-radio" name="mergeQuantization" value="Q8_0">
+                        <span class="ml-2">Q8_0</span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="mergeConvertButton" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full
+                focus:outline-none focus:shadow-outline" type="button">
+                Merge & Convert Models
+            </button>
+        </div>
+
+        <!-- Status Area (shared for both sections) -->
         <div id="statusArea" class="mt-6 p-4 bg-gray-50 rounded-md text-sm text-gray-800 hidden">
             <p id="statusMessage" class="font-semibold"></p>
             <pre id="logArea" class="mt-2 whitespace-pre-wrap text-xs"></pre>
@@ -57,28 +128,64 @@
     </div>
 
     <script>
-        const fileInput = document.getElementById('safetensorsFile');
-        const fileNameDisplay = document.getElementById('fileName');
-        const convertButton = document.getElementById('convertButton');
+        // Single Model Conversion Elements
+        const singleFileInput = document.getElementById('safetensorsFile');
+        const singleFileNameDisplay = document.getElementById('fileName');
+        const singleConvertButton = document.getElementById('convertButton');
+
+        // Merge Models Elements
+        const model1File = document.getElementById('model1File');
+        const model1FileName = document.getElementById('model1FileName');
+        const weight1 = document.getElementById('weight1');
+        const model2File = document.getElementById('model2File');
+        const model2FileName = document.getElementById('model2FileName');
+        const weight2 = document.getElementById('weight2');
+        const mergeConvertButton = document.getElementById('mergeConvertButton');
+
+        // Shared Status Elements
         const statusArea = document.getElementById('statusArea');
         const statusMessage = document.getElementById('statusMessage');
         const logArea = document.getElementById('logArea');
 
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) {
-                fileNameDisplay.textContent = `Selected file: ${fileInput.files[0].name}`;
-                convertButton.disabled = false;
+        // Event Listeners for file inputs
+        singleFileInput.addEventListener('change', () => {
+            if (singleFileInput.files.length > 0) {
+                singleFileNameDisplay.textContent = `Selected file: ${singleFileInput.files[0].name}`;
+                singleConvertButton.disabled = false;
             } else {
-                fileNameDisplay.textContent = '';
-                convertButton.disabled = true;
+                singleFileNameDisplay.textContent = '';
+                singleConvertButton.disabled = true;
             }
             statusArea.classList.add('hidden');
         });
 
-        convertButton.addEventListener('click', async () => {
-            const file = fileInput.files[0];
+        model1File.addEventListener('change', () => {
+            model1FileName.textContent = model1File.files.length > 0 ? `Selected file: ${model1File.files[0].name}` : '';
+            checkMergeButtonStatus();
+            statusArea.classList.add('hidden');
+        });
+
+        model2File.addEventListener('change', () => {
+            model2FileName.textContent = model2File.files.length > 0 ? `Selected file: ${model2File.files[0].name}` : '';
+            checkMergeButtonStatus();
+            statusArea.classList.add('hidden');
+        });
+
+        weight1.addEventListener('input', checkMergeButtonStatus);
+        weight2.addEventListener('input', checkMergeButtonStatus);
+
+        function checkMergeButtonStatus() {
+            const isModel1Selected = model1File.files.length > 0;
+            const isModel2Selected = model2File.files.length > 0;
+            const areWeightsValid = !isNaN(parseFloat(weight1.value)) && !isNaN(parseFloat(weight2.value));
+            mergeConvertButton.disabled = !(isModel1Selected && isModel2Selected && areWeightsValid);
+        }
+
+        // Event Listener for Single Convert Button
+        singleConvertButton.addEventListener('click', async () => {
+            const file = singleFileInput.files[0];
             if (!file) {
-                alert("Please select a .safetensors file first.");
+                alert("Please select a .safetensors or .zip file first.");
                 return;
             }
 
@@ -88,7 +195,7 @@
             formData.append('file', file);
             formData.append('quantization', quantizationType);
 
-            convertButton.disabled = true;
+            singleConvertButton.disabled = true;
             statusArea.classList.remove('hidden');
             statusMessage.textContent = 'Conversion started...';
             logArea.textContent = '';
@@ -104,7 +211,6 @@
                 if (response.ok) {
                     statusMessage.textContent = 'Conversion successful!';
                     logArea.textContent = `Output file: ${data.output_file}`;
-                    // Optionally, provide a download link for the output file
                 } else {
                     statusMessage.textContent = 'Conversion failed!';
                     logArea.textContent = `Error: ${data.detail || 'Unknown error'}`;
@@ -113,12 +219,66 @@
                 statusMessage.textContent = 'An error occurred during conversion.';
                 logArea.textContent = `Error: ${error.message}`;
             } finally {
-                convertButton.disabled = false;
+                singleConvertButton.disabled = false;
+            }
+        });
+
+        // Event Listener for Merge & Convert Button
+        mergeConvertButton.addEventListener('click', async () => {
+            const file1 = model1File.files[0];
+            const file2 = model2File.files[0];
+            const w1 = parseFloat(weight1.value);
+            const w2 = parseFloat(weight2.value);
+
+            if (!file1 || !file2) {
+                alert("Please select both model files.");
+                return;
+            }
+            if (isNaN(w1) || isNaN(w2)) {
+                alert("Please enter valid weights.");
+                return;
+            }
+
+            const mergeQuantizationType = document.querySelector('input[name="mergeQuantization"]:checked').value;
+
+            const formData = new FormData();
+            formData.append('model1_file', file1);
+            formData.append('weight1', w1);
+            formData.append('model2_file', file2);
+            formData.append('weight2', w2);
+            formData.append('quantization', mergeQuantizationType);
+
+            mergeConvertButton.disabled = true;
+            statusArea.classList.remove('hidden');
+            statusMessage.textContent = 'Merge and conversion started...';
+            logArea.textContent = '';
+
+            try {
+                const response = await fetch('/merge_and_convert_models/', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusMessage.textContent = 'Merge and conversion successful!';
+                    logArea.textContent = `Output file: ${data.output_file}`;
+                } else {
+                    statusMessage.textContent = 'Merge and conversion failed!';
+                    logArea.textContent = `Error: ${data.detail || 'Unknown error'}`;
+                }
+            } catch (error) {
+                statusMessage.textContent = 'An error occurred during merge and conversion.';
+                logArea.textContent = `Error: ${error.message}`;
+            } finally {
+                mergeConvertButton.disabled = false;
             }
         });
 
         // Initial state
-        convertButton.disabled = true;
+        singleConvertButton.disabled = true;
+        checkMergeButtonStatus();
     </script>
 </body>
 </html>
